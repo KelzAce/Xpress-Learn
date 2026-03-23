@@ -1,6 +1,6 @@
 # XpressLearn LMS
 
-A modern Learning Management System built with ASP.NET Core 8 MVC, Dapper, and SQL Server.
+A modern Learning Management System built with ASP.NET Core 8 Razor Pages, Dapper, and SQL Server.
 
 ## Features
 
@@ -14,7 +14,7 @@ A modern Learning Management System built with ASP.NET Core 8 MVC, Dapper, and S
 
 | Technology | Version |
 |---|---|
-| ASP.NET Core MVC | 8.0 |
+| ASP.NET Core Razor Pages | 8.0 |
 | Dapper | 2.1.35 |
 | SQL Server | 2019+ |
 | Bootstrap | 5.x (via CDN) |
@@ -24,10 +24,21 @@ A modern Learning Management System built with ASP.NET Core 8 MVC, Dapper, and S
 
 ```
 XpressLearn/
-├── Controllers/
-│   ├── CoursesController.cs      # CRUD for courses + file upload
-│   ├── DashboardController.cs    # Leaderboard data endpoint
-│   └── HomeController.cs        # Home and error pages
+├── Pages/
+│   ├── Index.cshtml / Index.cshtml.cs          # Home page
+│   ├── Privacy.cshtml / Privacy.cshtml.cs      # Privacy page
+│   ├── Error.cshtml / Error.cshtml.cs          # Error page
+│   ├── Courses/
+│   │   ├── Index.cshtml / Index.cshtml.cs      # Course listing + delete
+│   │   ├── Create.cshtml / Create.cshtml.cs    # Create course + file upload
+│   │   └── Edit.cshtml / Edit.cshtml.cs        # Edit course + file upload
+│   ├── Dashboard/
+│   │   └── Leaderboard.cshtml / Leaderboard.cshtml.cs  # Leaderboard + JSON handler
+│   ├── Shared/
+│   │   ├── _Layout.cshtml                      # Master layout
+│   │   └── _ValidationScriptsPartial.cshtml    # Validation scripts
+│   ├── _ViewImports.cshtml
+│   └── _ViewStart.cshtml
 ├── Models/
 │   ├── User.cs
 │   ├── Category.cs
@@ -39,10 +50,6 @@ XpressLearn/
 │   ├── ICourseRepository.cs / CourseRepository.cs
 │   ├── IAttemptRepository.cs / AttemptRepository.cs
 │   └── ILeaderboardRepository.cs / LeaderboardRepository.cs
-├── Views/
-│   ├── Courses/ (Index, Create, Edit)
-│   ├── Dashboard/ (Leaderboard)
-│   └── Shared/ (_Layout, _ValidationScriptsPartial)
 ├── wwwroot/uploads/              # Uploaded course thumbnails
 ├── Program.cs                    # DI setup, middleware pipeline
 └── appsettings.json
