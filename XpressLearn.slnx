@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/XpressLearn.API/XpressLearn.API.csproj" />
+    <Project Path="src/XpressLearn.Application/XpressLearn.Application.csproj" />
+    <Project Path="src/XpressLearn.Domain/XpressLearn.Domain.csproj" />
+    <Project Path="src/XpressLearn.Infrastructure/XpressLearn.Infrastructure.csproj" />
+  </Folder>
+</Solution>
