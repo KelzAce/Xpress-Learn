@@ -4,8 +4,20 @@ using XpressLearn.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Razor Pages
-builder.Services.AddRazorPages();
+// Add API controllers
+builder.Services.AddControllers();
+
+// Add Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
+    {
+        Title = "XpressLearn API",
+        Version = "v1",
+        Description = "Learning Management System API – Courses, Attempts, Leaderboard, Users, and Categories."
+    });
+});
 
 // Register IDbConnection as scoped
 builder.Services.AddScoped<IDbConnection>(sp =>
@@ -22,11 +34,13 @@ builder.Services.AddScoped<ILeaderboardRepository, LeaderboardRepository>();
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+// Enable Swagger in all environments
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "XpressLearn API v1");
+    options.RoutePrefix = string.Empty;
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -38,6 +52,7 @@ var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
 if (!Directory.Exists(uploadsPath))
     Directory.CreateDirectory(uploadsPath);
 
-app.MapRazorPages();
+app.MapControllers();
 
 app.Run();
+
