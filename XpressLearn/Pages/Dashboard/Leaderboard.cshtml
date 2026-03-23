@@ -1,3 +1,5 @@
+@page
+@model XpressLearn.Pages.Dashboard.LeaderboardModel
 @{
     ViewData["Title"] = "Leaderboard";
 }
@@ -30,7 +32,7 @@
         spinner.classList.remove('d-none');
 
         try {
-            const response = await fetch('/Dashboard/GetLeaderboardData');
+            const response = await fetch('/Dashboard/Leaderboard?handler=LeaderboardData');
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
 
