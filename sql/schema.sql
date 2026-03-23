@@ -179,3 +179,10 @@ AS BEGIN
     SELECT CategoryId, Name, Description, CreatedAt FROM Categories ORDER BY Name
 END
 GO
+
+-- usp_GetInstructors
+CREATE PROCEDURE usp_GetInstructors
+AS BEGIN
+    SELECT UserId, Username, FirstName, LastName FROM Users WHERE Role = 'Instructor' ORDER BY FirstName, LastName
+END
+GO

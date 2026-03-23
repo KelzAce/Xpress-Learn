@@ -8,6 +8,9 @@ namespace XpressLearn.Controllers;
 
 public class CoursesController : Controller
 {
+    private static readonly HashSet<string> AllowedImageExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+
     private readonly ICourseRepository _courseRepository;
     private readonly IDbConnection _db;
     private readonly IWebHostEnvironment _env;
@@ -19,6 +22,35 @@ public class CoursesController : Controller
         _env = env;
     }
 
+    private async Task<(List<Category> categories, List<User> instructors)> GetFormDataAsync()
+    {
+        var categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList();
+        var instructors = (await _db.QueryAsync<User>("usp_GetInstructors", commandType: CommandType.StoredProcedure)).ToList();
+        return (categories, instructors);
+    }
+
+    private async Task<string?> SaveThumbnailAsync(IFormFile? thumbnail, string? existingUrl = null)
+    {
+        if (thumbnail == null || thumbnail.Length == 0) return existingUrl;
+
+        var ext = Path.GetExtension(thumbnail.FileName);
+        if (!AllowedImageExtensions.Contains(ext))
+        {
+            ModelState.AddModelError("Thumbnail", "Only image files (.jpg, .jpeg, .png, .gif, .webp) are allowed.");
+            return existingUrl;
+        }
+
+        var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
+        if (!Directory.Exists(uploadsDir))
+            Directory.CreateDirectory(uploadsDir);
+
+        var fileName = Guid.NewGuid().ToString() + ext;
+        var filePath = Path.Combine(uploadsDir, fileName);
+        using var stream = new FileStream(filePath, FileMode.Create);
+        await thumbnail.CopyToAsync(stream);
+        return "/uploads/" + fileName;
+    }
+
     public async Task<IActionResult> Index()
     {
         var courses = await _courseRepository.GetAllCoursesAsync();
@@ -28,11 +60,8 @@ public class CoursesController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
-        var vm = new CourseCreateViewModel
-        {
-            Categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList(),
-            Instructors = (await _db.QueryAsync<User>("SELECT UserId, Username, FirstName, LastName FROM Users WHERE Role = 'Instructor'")).ToList()
-        };
+        var (categories, instructors) = await GetFormDataAsync();
+        var vm = new CourseCreateViewModel { Categories = categories, Instructors = instructors };
         return View(vm);
     }
 
@@ -40,25 +69,13 @@ public class CoursesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CourseCreateViewModel vm)
     {
+        var thumbnailUrl = await SaveThumbnailAsync(vm.Thumbnail);
         if (!ModelState.IsValid)
         {
-            vm.Categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList();
-            vm.Instructors = (await _db.QueryAsync<User>("SELECT UserId, Username, FirstName, LastName FROM Users WHERE Role = 'Instructor'")).ToList();
+            var (categories, instructors) = await GetFormDataAsync();
+            vm.Categories = categories;
+            vm.Instructors = instructors;
             return View(vm);
-        }
-
-        string? thumbnailUrl = null;
-        if (vm.Thumbnail != null && vm.Thumbnail.Length > 0)
-        {
-            var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
-            if (!Directory.Exists(uploadsDir))
-                Directory.CreateDirectory(uploadsDir);
-
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(vm.Thumbnail.FileName);
-            var filePath = Path.Combine(uploadsDir, fileName);
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await vm.Thumbnail.CopyToAsync(stream);
-            thumbnailUrl = "/uploads/" + fileName;
         }
 
         var course = new Course
@@ -82,6 +99,7 @@ public class CoursesController : Controller
         var course = await _courseRepository.GetCourseByIdAsync(id);
         if (course == null) return NotFound();
 
+        var (categories, instructors) = await GetFormDataAsync();
         var vm = new CourseCreateViewModel
         {
             Title = course.Title,
@@ -90,8 +108,8 @@ public class CoursesController : Controller
             InstructorId = course.InstructorId,
             Price = course.Price,
             Level = course.Level,
-            Categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList(),
-            Instructors = (await _db.QueryAsync<User>("SELECT UserId, Username, FirstName, LastName FROM Users WHERE Role = 'Instructor'")).ToList()
+            Categories = categories,
+            Instructors = instructors
         };
         ViewBag.CourseId = id;
         ViewBag.ExistingThumbnail = course.ThumbnailUrl;
@@ -102,29 +120,17 @@ public class CoursesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, CourseCreateViewModel vm)
     {
-        if (!ModelState.IsValid)
-        {
-            vm.Categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList();
-            vm.Instructors = (await _db.QueryAsync<User>("SELECT UserId, Username, FirstName, LastName FROM Users WHERE Role = 'Instructor'")).ToList();
-            ViewBag.CourseId = id;
-            return View(vm);
-        }
-
         var existing = await _courseRepository.GetCourseByIdAsync(id);
         if (existing == null) return NotFound();
 
-        string? thumbnailUrl = existing.ThumbnailUrl;
-        if (vm.Thumbnail != null && vm.Thumbnail.Length > 0)
+        var thumbnailUrl = await SaveThumbnailAsync(vm.Thumbnail, existing.ThumbnailUrl);
+        if (!ModelState.IsValid)
         {
-            var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
-            if (!Directory.Exists(uploadsDir))
-                Directory.CreateDirectory(uploadsDir);
-
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(vm.Thumbnail.FileName);
-            var filePath = Path.Combine(uploadsDir, fileName);
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await vm.Thumbnail.CopyToAsync(stream);
-            thumbnailUrl = "/uploads/" + fileName;
+            var (categories, instructors) = await GetFormDataAsync();
+            vm.Categories = categories;
+            vm.Instructors = instructors;
+            ViewBag.CourseId = id;
+            return View(vm);
         }
 
         var course = new Course
