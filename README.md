@@ -1,6 +1,6 @@
 # XpressLearn LMS API
 
-A Learning Management System Web API built with ASP.NET Core 8, Dapper, SQL Server, and Swagger.
+A Learning Management System Web API built with ASP.NET Core 8, Dapper, SQL Server, and Swagger, following **Clean Architecture** principles.
 
 ## Features
 
@@ -10,44 +10,73 @@ A Learning Management System Web API built with ASP.NET Core 8, Dapper, SQL Serv
 - **Users & Categories** – Endpoints for users, instructors, and course categories
 - **Swagger UI** – Interactive API documentation available at the root URL
 - **Dapper + Stored Procedures** – All database interactions use stored procedures
+- **Clean Architecture** – Separated into Domain, Application, Infrastructure, and API layers
 
 ## Tech Stack
 
 | Technology | Version |
 |---|---|
 | ASP.NET Core Web API | 8.0 |
-| Swagger (Swashbuckle) | 10.1.5 |
+| Swagger (Swashbuckle) | 6.6.2 |
 | Dapper | 2.1.35 |
 | SQL Server | 2019+ |
 | C# | 12 |
 
+## Architecture
+
+The project follows **Clean Architecture** with four layers:
+
+| Layer | Project | Responsibility |
+|---|---|---|
+| **Domain** | `XpressLearn.Domain` | Entity models (no external dependencies) |
+| **Application** | `XpressLearn.Application` | Repository interfaces, application-level DTOs |
+| **Infrastructure** | `XpressLearn.Infrastructure` | Dapper repository implementations, database access |
+| **API** | `XpressLearn.API` | Controllers, API request DTOs, configuration |
+
+**Dependency flow:** API → Infrastructure → Application → Domain
+
 ## Project Structure
 
 ```
-XpressLearn/
-├── Controllers/
-│   ├── CoursesController.cs        # CRUD for courses + file upload
-│   ├── AttemptsController.cs       # Attempts by course/user + create
-│   ├── LeaderboardController.cs    # Leaderboard analytics
-│   ├── CategoriesController.cs     # Course categories
-│   └── UsersController.cs          # Users + instructors
-├── DTOs/
-│   ├── CreateCourseRequest.cs      # Course creation request body
-│   ├── UpdateCourseRequest.cs      # Course update request body
-│   └── CreateAttemptRequest.cs     # Attempt creation request body
-├── Models/
-│   ├── User.cs
-│   ├── Category.cs
-│   ├── Course.cs
-│   ├── Attempt.cs
-│   └── LeaderboardEntry.cs
-├── Repositories/
-│   ├── ICourseRepository.cs / CourseRepository.cs
-│   ├── IAttemptRepository.cs / AttemptRepository.cs
-│   └── ILeaderboardRepository.cs / LeaderboardRepository.cs
-├── wwwroot/uploads/              # Uploaded course thumbnails
-├── Program.cs                    # DI, Swagger, middleware pipeline
-└── appsettings.json
+XpressLearn.slnx
+src/
+├── XpressLearn.Domain/
+│   └── Entities/
+│       ├── Course.cs
+│       ├── User.cs
+│       ├── Category.cs
+│       ├── Attempt.cs
+│       └── LeaderboardEntry.cs
+├── XpressLearn.Application/
+│   ├── Interfaces/
+│   │   ├── ICourseRepository.cs
+│   │   ├── IAttemptRepository.cs
+│   │   ├── ILeaderboardRepository.cs
+│   │   ├── ICategoryRepository.cs
+│   │   └── IUserRepository.cs
+│   └── DTOs/
+│       └── CreateAttemptRequest.cs
+├── XpressLearn.Infrastructure/
+│   ├── Repositories/
+│   │   ├── CourseRepository.cs
+│   │   ├── AttemptRepository.cs
+│   │   ├── LeaderboardRepository.cs
+│   │   ├── CategoryRepository.cs
+│   │   └── UserRepository.cs
+│   └── DependencyInjection.cs
+└── XpressLearn.API/
+    ├── Controllers/
+    │   ├── CoursesController.cs
+    │   ├── AttemptsController.cs
+    │   ├── LeaderboardController.cs
+    │   ├── CategoriesController.cs
+    │   └── UsersController.cs
+    ├── DTOs/
+    │   ├── CreateCourseRequest.cs
+    │   └── UpdateCourseRequest.cs
+    ├── wwwroot/uploads/
+    ├── Program.cs
+    └── appsettings.json
 
 sql/
 ├── schema.sql    # Table DDL + 12 stored procedures
@@ -89,7 +118,7 @@ GO
 
 ## Configuration
 
-Update `appsettings.json` with your SQL Server connection string:
+Update `src/XpressLearn.API/appsettings.json` with your SQL Server connection string:
 
 ```json
 {
@@ -102,8 +131,8 @@ Update `appsettings.json` with your SQL Server connection string:
 ## Running the Application
 
 ```bash
-cd XpressLearn
-dotnet run
+dotnet build XpressLearn.slnx
+dotnet run --project src/XpressLearn.API
 ```
 
 Navigate to `https://localhost:5001` (or the port shown in terminal) to open the Swagger UI.
