@@ -1,9 +1,8 @@
-using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
-namespace XpressLearn.Models;
+namespace XpressLearn.DTOs;
 
-public class CourseCreateViewModel
+public class CreateCourseRequest
 {
     [Required]
     [StringLength(200)]
@@ -25,7 +24,4 @@ public class CourseCreateViewModel
     public string Level { get; set; } = "Beginner";
 
     public IFormFile? Thumbnail { get; set; }
-
-    public List<Category> Categories { get; set; } = new();
-    public List<User> Instructors { get; set; } = new();
 }

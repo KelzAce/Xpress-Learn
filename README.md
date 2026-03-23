@@ -1,23 +1,24 @@
-# XpressLearn LMS
+# XpressLearn LMS API
 
-A modern Learning Management System built with ASP.NET Core 8 MVC, Dapper, and SQL Server.
+A Learning Management System Web API built with ASP.NET Core 8, Dapper, SQL Server, and Swagger.
 
 ## Features
 
-- **Course Management** – Full CRUD (Create, Read, Update, Delete) for courses with thumbnail image upload
-- **Leaderboard** – Category-based leaderboard showing top scorer per category, loaded via async JavaScript fetch
-- **Categories** – 10 subject categories (Technology, Business, Design, Marketing, Music, Photography, Health & Fitness, Personal Development, Language, Science)
-- **User Roles** – Admin, Instructor, Student roles with role-based data
-- **Bootstrap 5** – Responsive UI with tables, badges, progress bars, cards
+- **Course Management** – Full CRUD REST API for courses with thumbnail file upload
+- **Attempts Tracking** – Track user progress, scores, and timestamps
+- **Leaderboard** – Analytics endpoint showing top scorer per course category
+- **Users & Categories** – Endpoints for users, instructors, and course categories
+- **Swagger UI** – Interactive API documentation available at the root URL
+- **Dapper + Stored Procedures** – All database interactions use stored procedures
 
 ## Tech Stack
 
 | Technology | Version |
 |---|---|
-| ASP.NET Core MVC | 8.0 |
+| ASP.NET Core Web API | 8.0 |
+| Swagger (Swashbuckle) | 10.1.5 |
 | Dapper | 2.1.35 |
 | SQL Server | 2019+ |
-| Bootstrap | 5.x (via CDN) |
 | C# | 12 |
 
 ## Project Structure
@@ -25,32 +26,51 @@ A modern Learning Management System built with ASP.NET Core 8 MVC, Dapper, and S
 ```
 XpressLearn/
 ├── Controllers/
-│   ├── CoursesController.cs      # CRUD for courses + file upload
-│   ├── DashboardController.cs    # Leaderboard data endpoint
-│   └── HomeController.cs        # Home and error pages
+│   ├── CoursesController.cs        # CRUD for courses + file upload
+│   ├── AttemptsController.cs       # Attempts by course/user + create
+│   ├── LeaderboardController.cs    # Leaderboard analytics
+│   ├── CategoriesController.cs     # Course categories
+│   └── UsersController.cs          # Users + instructors
+├── DTOs/
+│   ├── CreateCourseRequest.cs      # Course creation request body
+│   ├── UpdateCourseRequest.cs      # Course update request body
+│   └── CreateAttemptRequest.cs     # Attempt creation request body
 ├── Models/
 │   ├── User.cs
 │   ├── Category.cs
 │   ├── Course.cs
 │   ├── Attempt.cs
-│   ├── LeaderboardEntry.cs
-│   └── CourseCreateViewModel.cs
+│   └── LeaderboardEntry.cs
 ├── Repositories/
 │   ├── ICourseRepository.cs / CourseRepository.cs
 │   ├── IAttemptRepository.cs / AttemptRepository.cs
 │   └── ILeaderboardRepository.cs / LeaderboardRepository.cs
-├── Views/
-│   ├── Courses/ (Index, Create, Edit)
-│   ├── Dashboard/ (Leaderboard)
-│   └── Shared/ (_Layout, _ValidationScriptsPartial)
 ├── wwwroot/uploads/              # Uploaded course thumbnails
-├── Program.cs                    # DI setup, middleware pipeline
+├── Program.cs                    # DI, Swagger, middleware pipeline
 └── appsettings.json
 
 sql/
 ├── schema.sql    # Table DDL + 12 stored procedures
 └── seed.sql      # Sample data (10 categories, 50 users, 500 courses, 500 attempts)
 ```
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/courses` | Get all courses |
+| `GET` | `/api/courses/{id}` | Get course by ID |
+| `POST` | `/api/courses` | Create course (multipart/form-data) |
+| `PUT` | `/api/courses/{id}` | Update course (multipart/form-data) |
+| `DELETE` | `/api/courses/{id}` | Delete course |
+| `GET` | `/api/attempts/course/{courseId}` | Get attempts by course |
+| `GET` | `/api/attempts/user/{userId}` | Get attempts by user |
+| `POST` | `/api/attempts` | Create attempt |
+| `GET` | `/api/leaderboard` | Get leaderboard (top scorer per category) |
+| `GET` | `/api/categories` | Get all categories |
+| `GET` | `/api/users` | Get all users |
+| `GET` | `/api/users/{id}` | Get user by ID |
+| `GET` | `/api/users/instructors` | Get all instructors |
 
 ## Database Setup
 
@@ -86,7 +106,7 @@ cd XpressLearn
 dotnet run
 ```
 
-Navigate to `https://localhost:5001` (or the port shown in terminal).
+Navigate to `https://localhost:5001` (or the port shown in terminal) to open the Swagger UI.
 
 ## Stored Procedures
 

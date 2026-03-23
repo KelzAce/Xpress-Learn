@@ -1,44 +1,33 @@
 using Microsoft.AspNetCore.Mvc;
+using XpressLearn.DTOs;
 using XpressLearn.Models;
 using XpressLearn.Repositories;
-using System.Data;
-using Dapper;
 
 namespace XpressLearn.Controllers;
 
-public class CoursesController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class CoursesController : ControllerBase
 {
     private static readonly HashSet<string> AllowedImageExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
 
     private readonly ICourseRepository _courseRepository;
-    private readonly IDbConnection _db;
     private readonly IWebHostEnvironment _env;
 
-    public CoursesController(ICourseRepository courseRepository, IDbConnection db, IWebHostEnvironment env)
+    public CoursesController(ICourseRepository courseRepository, IWebHostEnvironment env)
     {
         _courseRepository = courseRepository;
-        _db = db;
         _env = env;
     }
 
-    private async Task<(List<Category> categories, List<User> instructors)> GetFormDataAsync()
+    private async Task<string?> SaveThumbnailAsync(IFormFile? thumbnail)
     {
-        var categories = (await _db.QueryAsync<Category>("usp_GetAllCategories", commandType: CommandType.StoredProcedure)).ToList();
-        var instructors = (await _db.QueryAsync<User>("usp_GetInstructors", commandType: CommandType.StoredProcedure)).ToList();
-        return (categories, instructors);
-    }
-
-    private async Task<string?> SaveThumbnailAsync(IFormFile? thumbnail, string? existingUrl = null)
-    {
-        if (thumbnail == null || thumbnail.Length == 0) return existingUrl;
+        if (thumbnail == null || thumbnail.Length == 0) return null;
 
         var ext = Path.GetExtension(thumbnail.FileName);
         if (!AllowedImageExtensions.Contains(ext))
-        {
-            ModelState.AddModelError("Thumbnail", "Only image files (.jpg, .jpeg, .png, .gif, .webp) are allowed.");
-            return existingUrl;
-        }
+            return null;
 
         var uploadsDir = Path.Combine(_env.WebRootPath, "uploads");
         if (!Directory.Exists(uploadsDir))
@@ -51,110 +40,95 @@ public class CoursesController : Controller
         return "/uploads/" + fileName;
     }
 
-    public async Task<IActionResult> Index()
+    /// <summary>
+    /// Get all courses.
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
         var courses = await _courseRepository.GetAllCoursesAsync();
-        return View(courses);
+        return Ok(courses);
     }
 
-    [HttpGet]
-    public async Task<IActionResult> Create()
-    {
-        var (categories, instructors) = await GetFormDataAsync();
-        var vm = new CourseCreateViewModel { Categories = categories, Instructors = instructors };
-        return View(vm);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CourseCreateViewModel vm)
-    {
-        var thumbnailUrl = await SaveThumbnailAsync(vm.Thumbnail);
-        if (!ModelState.IsValid)
-        {
-            var (categories, instructors) = await GetFormDataAsync();
-            vm.Categories = categories;
-            vm.Instructors = instructors;
-            return View(vm);
-        }
-
-        var course = new Course
-        {
-            Title = vm.Title,
-            Description = vm.Description,
-            CategoryId = vm.CategoryId,
-            InstructorId = vm.InstructorId,
-            Price = vm.Price,
-            Level = vm.Level,
-            ThumbnailUrl = thumbnailUrl
-        };
-
-        await _courseRepository.CreateCourseAsync(course);
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Edit(int id)
+    /// <summary>
+    /// Get a course by ID.
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
     {
         var course = await _courseRepository.GetCourseByIdAsync(id);
         if (course == null) return NotFound();
-
-        var (categories, instructors) = await GetFormDataAsync();
-        var vm = new CourseCreateViewModel
-        {
-            Title = course.Title,
-            Description = course.Description,
-            CategoryId = course.CategoryId,
-            InstructorId = course.InstructorId,
-            Price = course.Price,
-            Level = course.Level,
-            Categories = categories,
-            Instructors = instructors
-        };
-        ViewBag.CourseId = id;
-        ViewBag.ExistingThumbnail = course.ThumbnailUrl;
-        return View(vm);
+        return Ok(course);
     }
 
+    /// <summary>
+    /// Create a new course with optional thumbnail upload.
+    /// </summary>
     [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, CourseCreateViewModel vm)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Create([FromForm] CreateCourseRequest request)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var thumbnailUrl = await SaveThumbnailAsync(request.Thumbnail);
+
+        var course = new Course
+        {
+            Title = request.Title,
+            Description = request.Description,
+            CategoryId = request.CategoryId,
+            InstructorId = request.InstructorId,
+            Price = request.Price,
+            Level = request.Level,
+            ThumbnailUrl = thumbnailUrl
+        };
+
+        var id = await _courseRepository.CreateCourseAsync(course);
+        course.CourseId = id;
+        return CreatedAtAction(nameof(GetById), new { id }, course);
+    }
+
+    /// <summary>
+    /// Update an existing course with optional thumbnail upload.
+    /// </summary>
+    [HttpPut("{id}")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Update(int id, [FromForm] UpdateCourseRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         var existing = await _courseRepository.GetCourseByIdAsync(id);
         if (existing == null) return NotFound();
 
-        var thumbnailUrl = await SaveThumbnailAsync(vm.Thumbnail, existing.ThumbnailUrl);
-        if (!ModelState.IsValid)
-        {
-            var (categories, instructors) = await GetFormDataAsync();
-            vm.Categories = categories;
-            vm.Instructors = instructors;
-            ViewBag.CourseId = id;
-            return View(vm);
-        }
+        var thumbnailUrl = await SaveThumbnailAsync(request.Thumbnail) ?? existing.ThumbnailUrl;
 
         var course = new Course
         {
             CourseId = id,
-            Title = vm.Title,
-            Description = vm.Description,
-            CategoryId = vm.CategoryId,
-            InstructorId = vm.InstructorId,
-            Price = vm.Price,
-            Level = vm.Level,
+            Title = request.Title,
+            Description = request.Description,
+            CategoryId = request.CategoryId,
+            InstructorId = request.InstructorId,
+            Price = request.Price,
+            Level = request.Level,
             ThumbnailUrl = thumbnailUrl,
-            IsPublished = existing.IsPublished
+            IsPublished = request.IsPublished
         };
 
         await _courseRepository.UpdateCourseAsync(course);
-        return RedirectToAction(nameof(Index));
+        return NoContent();
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
+    /// <summary>
+    /// Delete a course by ID.
+    /// </summary>
+    [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        var existing = await _courseRepository.GetCourseByIdAsync(id);
+        if (existing == null) return NotFound();
+
         await _courseRepository.DeleteCourseAsync(id);
-        return RedirectToAction(nameof(Index));
+        return NoContent();
     }
 }
