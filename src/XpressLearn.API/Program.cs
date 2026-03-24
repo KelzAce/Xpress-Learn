@@ -38,7 +38,7 @@ app.UseRouting();
 app.UseAuthorization();
 
 // Ensure uploads directory exists
-var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
 if (!Directory.Exists(uploadsPath))
     Directory.CreateDirectory(uploadsPath);
 
